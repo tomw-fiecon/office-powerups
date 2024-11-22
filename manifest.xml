@@ -6,13 +6,15 @@
   <DefaultLocale>en-GB</DefaultLocale>
   <DisplayName DefaultValue="FIECON Powerups"/>
   <Description DefaultValue="Accelerate your workflow with Powerups: Your ideas, implemented fast, instantly available to everyone."/>
-  <IconUrl DefaultValue="https://localhost:3000/assets/pwrups_32.png"/>
-  <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/pwrups_64.png"/>
-  <SupportUrl DefaultValue="https://github.com/tomw-fiecon/fiecon-apps-excel"/>
+  <IconUrl DefaultValue="https://raw.githubusercontent.com/tomw-fiecon/office-powerups/refs/heads/main/assets/pwrups_32.png"/>
+  <HighResolutionIconUrl DefaultValue="https://raw.githubusercontent.com/tomw-fiecon/office-powerups/refs/heads/main/assets/pwrups_64.png"/>
+  <!-- <IconUrl DefaultValue="https://localhost:3000/assets/pwrups_32.png"/>
+  <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/pwrups_64.png"/> -->
+  <SupportUrl DefaultValue="https://github.com/tomw-fiecon/office-powerups/"/>
   <AppDomains>
-    <AppDomain>https://tomw-fiecon.github.io/fiecon-apps-excel</AppDomain>
-    <AppDomain>https://github.com/tomw-fiecon/fiecon-apps-excel</AppDomain>
-    <!-- <AppDomain>https://officedev.github.io/Office-Add-in-samples/Samples/office-keyboard-shortcuts/</AppDomain> -->
+    <AppDomain>https://tomw-fiecon.github.io/office-powerups/</AppDomain>
+    <AppDomain>https://github.com/tomw-fiecon/office-powerups</AppDomain>
+    <AppDomain>https://raw.githubusercontent.com/tomw-fiecon/office-powerups/</AppDomain>
   </AppDomains>
   <Hosts>
     <Host Name="Workbook"/>
@@ -23,7 +25,8 @@
     </Sets>
   </Requirements>
   <DefaultSettings>
-    <SourceLocation DefaultValue="https://localhost:3000/index.html"/>
+    <SourceLocation DefaultValue="https://tomw-fiecon.github.io/office-powerups/index.html"/>
+    <!-- <SourceLocation DefaultValue="https://localhost:3000/index.html"/> -->
   </DefaultSettings>
   <Permissions>ReadWriteDocument</Permissions>
   <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
@@ -72,14 +75,18 @@
     </Hosts>
     <Resources>
       <bt:Images>
-        <bt:Image id="Icon.16x16" DefaultValue="https://localhost:3000/assets/pwrups_16.png"/>
+        <bt:Image id="Icon.16x16" DefaultValue="https://raw.githubusercontent.com/tomw-fiecon/office-powerups/refs/heads/main/assets/pwrups_16.png"/>
+        <bt:Image id="Icon.32x32" DefaultValue="https://raw.githubusercontent.com/tomw-fiecon/office-powerups/refs/heads/main/assets/pwrups_32.png"/>
+        <bt:Image id="Icon.80x80" DefaultValue="https://raw.githubusercontent.com/tomw-fiecon/office-powerups/refs/heads/main/assets/pwrups_80.png"/>
+        <!-- <bt:Image id="Icon.16x16" DefaultValue="https://localhost:3000/assets/pwrups_16.png"/>
         <bt:Image id="Icon.32x32" DefaultValue="https://localhost:3000/assets/pwrups_32.png"/>
-        <bt:Image id="Icon.80x80" DefaultValue="https://localhost:3000/assets/pwrups_80.png"/>
+        <bt:Image id="Icon.80x80" DefaultValue="https://localhost:3000/assets/pwrups_80.png"/> -->
       </bt:Images>
       <bt:Urls>
         <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://go.microsoft.com/fwlink/?LinkId=276812"/>
         <!-- <bt:Url id="Commands.Url" DefaultValue="https://localhost:3000/commands.html"/> -->
-        <bt:Url id="Taskpane.Url" DefaultValue="https://localhost:3000/index.html"/>
+        <bt:Url id="Taskpane.Url" DefaultValue="https://tomw-fiecon.github.io/office-powerups/index.html"/>
+        <!-- <bt:Url id="Taskpane.Url" DefaultValue="https://localhost:3000/index.html"/> -->
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="GetStarted.Title" DefaultValue="Get started with FIECON Powerups!"/>
@@ -92,5 +99,5 @@
       </bt:LongStrings>
     </Resources>
   </VersionOverrides>
-  <ExtendedOverrides Url="https://localhost:3000/assets/shortcuts.json"></ExtendedOverrides>
+  <ExtendedOverrides Url="https://raw.githubusercontent.com/tomw-fiecon/office-powerups/refs/heads/main/assets/shortcuts.json"></ExtendedOverrides>
 </OfficeApp>
