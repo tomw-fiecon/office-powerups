@@ -194,7 +194,7 @@ const updateCardContainer = async (focus_first = false) =>
         deleteButton.className = "card-delete-button";
         deleteButton.setAttribute("aria-label", "Delete");
         deleteButton.setAttribute("type", "button");
-        deleteButton.innerHTML = `<img src="../assets/icon_delete_svg.svg" alt="Delete icon">`;
+        deleteButton.innerHTML = `<img src="./assets/icon_delete_svg.svg" alt="Delete icon">`;
         deleteButton.onclick = () => deleteCard(window.sharedState.capturedRanges.length - 1 - index);
 
         // Add elements to card header
