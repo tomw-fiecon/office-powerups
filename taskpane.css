@@ -494,6 +494,7 @@ flex-direction: column;
     color:grey;
     text-align: center;
     line-height: 1.2rem;
+    white-space: nowrap;
 }
 .hotkey-action-icon {
     height:28px;
