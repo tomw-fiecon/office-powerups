@@ -1,0 +1,166 @@
+<!-- Copyright (c) FIECON  2024 -->
+
+
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FIECON Powertools Add-in</title>
+
+  <!-- Office JavaScript API -->
+  <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
+
+
+  <!-- Link to CSS/JS-->
+  <link rel="stylesheet" href="taskpane.css" type="text/css">
+  <script src="taskpane.js"></script>
+
+</head>
+
+<body>
+
+  <!-- <div class="description-bar">
+    Capture worksheet changes here, then insert them into Change Log as hyperlinks.
+  </div> -->
+
+  <div class="tab-container active" id="home-tab">
+
+    <div class="title-bar">
+      <div class="back-button">
+        <img src="../assets/pwrup_bolt.svg" alt="Powerup Icon" style="height:24px">
+      </div>
+      <h3>Home</h3>
+    </div>
+
+
+    <div class="hotkey-input-container">
+      <p class="hotkey-input-label">Powerup Hotkey<br><span class="key-btn-text">Ctrl</span>+<span
+          class="key-btn-text">Shift</span>+<span class="key-btn-text">F</span></p>
+      <div class="hotkey-action-input"
+        onclick="showErrorMessage('Coming soon: configure or disable the Powerup Hotkey');">
+        <img src="../assets/ac_icon_generic.png" alt="Address Clipper" class="hotkey-action-icon ac-icon">
+        Capture Address
+      </div>
+    </div>
+    <div class="home-description">
+      <p>
+        Accelerate your workflow with <span style="font-weight:bold; color:#DF4326">Powerups</span> - your
+        ideas, implemented fast, instantly available to everyone.
+      </p>
+      <p>Choose an app to get started.</p>
+    </div>
+
+
+    <div class="app-container">
+      <div class="app-grid">
+        <!-- Add or remove 'interactive' class on individual app-items to toggle hover effects -->
+
+
+        <div class="app-item interactive">
+          <!-- <img src="../assets/idea_icon.png" alt="Suggestions" class="app-icon"> -->
+          <div class="app-icon interactive light" onclick="showTab(3);">+</div>
+          <span class="app-label">Suggestions</span>
+        </div>
+
+        <div class="app-item interactive">
+          <img src="../assets/cria_large.png" alt="Ask Cria" class="app-icon light" onclick="openCria()">
+          <!-- <div class="app-icon"></div> -->
+          <span class="app-label">Ask Cria</span>
+        </div>
+        <div class="app-item interactive">
+          <img src="../assets/ac_icon_generic.png" alt="Address Clipper" class="app-icon ac-icon"
+            onclick="showTab(2);">
+          <!-- <div class="app-icon"></div> -->
+          <span class="app-label">Address Clipper</span>
+        </div>
+        <div class="app-item">
+          <!-- <img src="/api/placeholder/100/100" alt="Camera" class="app-icon"> -->
+          <div class="app-icon"></div>
+          <span class="app-label hidden">Coming soon!</span>
+        </div>
+        <div class="app-item">
+          <!-- <img src="/api/placeholder/100/100" alt="Mail" class="app-icon"> -->
+          <div class="app-icon"></div>
+          <span class="app-label hidden">Coming soon!</span>
+        </div>
+        <div class="app-item">
+          <!-- <img src="/api/placeholder/100/100" alt="Notes" class="app-icon"> -->
+          <div class="app-icon"></div>
+          <span class="app-label hidden">Coming soon!</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <div class="tab-container" id="address-clipper">
+
+    <div class="title-bar">
+      <button class="back-button interactive" onclick="showTab(1);">
+        <svg class="back-arrow" viewBox="0 0 24 24">
+          <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+        </svg>
+      </button>
+      <h3>Address Clipper</h3>
+    </div>
+
+    <div class="button-pane">
+      <div class="button-container clickable" onclick="captureAddress()">
+        <img class="button-image ac-icon" src="../assets/ac_icon_generic.png" alt="Button Image" />
+        <div class="button-label">Capture<br>Address</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="vertical-button-group">
+        <div class="button-container small horizontal clickable" onclick="insertAllCards()">
+          <img class="button-image small" src="../assets/icon_insert_svg.svg" alt="Button Image" />
+          <div class="button-label">Insert all</div>
+        </div>
+        <div class="button-container small horizontal clickable" onclick="deleteAllCards()">
+          <img class="button-image small" src="../assets/icon_delete_svg.svg" alt="Button Image" />
+          <div class="button-label">Delete all</div>
+        </div>
+        <div class="button-container small horizontal">
+          <img class="button-image small" src="../assets/icon_user_svg.svg" alt="Button Image" />
+          <input id="initialsInput" class="pane-input" type="text" placeholder="Initials"
+            onkeydown="if(event.key === 'Enter') this.blur();" />
+        </div>
+      </div>
+    </div>
+
+
+    <div class="warning-bar">
+      <p>Warning: captured ranges may be lost when you close this tab.</p>
+    </div>
+
+    <div id="cardContainer" class="card-container">
+      <p id="no-addresses-message">Click "Capture Address" to get started.</p>
+    </div>
+
+  </div>
+
+
+  <div class="tab-container" id="suggestions-tab">
+
+    <div class="title-bar">
+      <button class="back-button interactive" onclick="showTab(1);">
+        <svg class="back-arrow" viewBox="0 0 24 24">
+          <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+        </svg>
+      </button>
+      <h3>Suggestions</h3>
+    </div>
+
+    <iframe src="https://poll.ly/BcxFsbkwL0QoLWgr0mRH"
+      style="width: 100%; height: 100%; border: none;zoom:80%;"></iframe>
+
+  </div>
+  <div class="error-popup-container"></div>
+</body>
+
+</html>
