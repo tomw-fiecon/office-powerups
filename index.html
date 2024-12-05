@@ -17,6 +17,8 @@
   <!-- Link to CSS/JS-->
   <link rel="stylesheet" href="taskpane.css" type="text/css">
   <script src="taskpane.js"></script>
+  <script
+    type="text/javascript">     (function (c, l, a, r, i, t, y) { c[a] = c[a] || function () { (c[a].q = c[a].q || []).push(arguments) }; t = l.createElement(r); t.async = 1; t.src = "https://www.clarity.ms/tag/" + i; y = l.getElementsByTagName(r)[0]; y.parentNode.insertBefore(t, y); })(window, document, "clarity", "script", "p8n33sg1sy"); </script>
 
 </head>
 
@@ -40,8 +42,8 @@
       <p class="hotkey-input-label">Powerup Hotkey<br><span class="key-btn-text">Ctrl</span>+<span
           class="key-btn-text">Alt</span>+<span class="key-btn-text">F</span></p>
       <div class="hotkey-action-input"
-        onclick="showErrorMessage('Coming soon: configure or disable the Powerup Hotkey');showTab(2);captureAddress()">
-        <img src="./assets/ac_icon_generic.png" alt="Address Clipper" class="hotkey-action-icon ac-icon">
+        onclick="showPopup('🛈 Coming soon: configure or disable the Powerup Hotkey', false); showTab(2); captureAddress()">
+        <img src="./assets/ac_icon_generic_3.png" alt="Change Logger" class="hotkey-action-icon ac-icon">
         Capture Address
       </div>
     </div>
@@ -71,10 +73,9 @@
           <span class="app-label">Ask Cria</span>
         </div>
         <div class="app-item interactive">
-          <img src="./assets/ac_icon_generic.png" alt="Address Clipper" class="app-icon ac-icon"
-            onclick="showTab(2);">
+          <img src="./assets/ac_icon_generic_3.png" alt="Change Logger" class="app-icon ac-icon" onclick="showTab(2);">
           <!-- <div class="app-icon"></div> -->
-          <span class="app-label">Address Clipper</span>
+          <span class="app-label">Change Logger</span>
         </div>
         <div class="app-item">
           <!-- <img src="/api/placeholder/100/100" alt="Camera" class="app-icon"> -->
@@ -105,25 +106,43 @@
           <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
         </svg>
       </button>
-      <h3>Address Clipper</h3>
+      <h3>Change Logger</h3>
     </div>
 
     <div class="button-pane">
-      <div class="button-container clickable" onclick="captureAddress()">
-        <img class="button-image ac-icon" src="./assets/ac_icon_generic.png" alt="Button Image" />
-        <div class="button-label">Capture<br>Address</div>
+      <div class="button-container dropdown" style="padding:0; gap:0; overflow: hidden;">
+        <img class="button-image clickable dropdown" src="./assets/ac_icon_0.png" alt="Button Image"
+          style="border-radius: 0px;" onclick="captureAddress()"/>
+        <div class="button-label clickable dropdown" style="width:100%; font-size:0.9rem" onclick="showPopup('🛈 Coming soon: add custom non-range entries, for instance VBA edits. For now, click the main button icon to capture a range.', false)" >
+          <div>Capture<br>Address</div>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" stroke="black" fill="none" stroke-width="1"
+            stroke-linecap="round" stroke-linejoin="round" style="height:15px;margin-top:2px">
+            <path d="M3 5l3 2.5 3-2.5" />
+          </svg>
+        </div>
       </div>
 
       <div class="divider"></div>
 
       <div class="vertical-button-group">
-        <div class="button-container small horizontal clickable" onclick="insertAllCards()">
+
+        <!-- Toggle -->
+        <div class="toggle-container">
+          <label class="toggle-switch">
+            <input type="checkbox" id="autosaveToggle" name="autosaveToggle" title="Toggle auto-save on or off"
+              onchange="handleAutosaveToggleChange(this)">
+            <span class="slider"></span>
+          </label>
+          <span for="deviceToggle">Auto-save</span>
+        </div>
+
+        <!-- <div class="button-container small horizontal clickable" onclick="insertAllCards()">
           <img class="button-image small" src="./assets/icon_insert_svg.svg" alt="Button Image" />
           <div class="button-label">Insert all</div>
-        </div>
+        </div> -->
         <div class="button-container small horizontal clickable" onclick="deleteAllCards()">
-          <img class="button-image small" src="./assets/icon_delete_svg.svg" alt="Button Image" />
-          <div class="button-label">Delete all</div>
+          <img class="button-image small" src="./assets/icon_clear.png" alt="Button Image" />
+          <div class="button-label">Clear all</div>
         </div>
         <div class="button-container small horizontal">
           <img class="button-image small" src="./assets/icon_user_svg.svg" alt="Button Image" />
@@ -156,11 +175,11 @@
       <h3>Suggestions</h3>
     </div>
 
-    <iframe src="https://poll.ly/BcxFsbkwL0QoLWgr0mRH"
-      style="width: 100%; height: 100%; border: none;zoom:80%;"></iframe>
+    <!-- <iframe src="https://poll.ly/BcxFsbkwL0QoLWgr0mRH"
+      style="width: 100%; height: 100%; border: none;zoom:80%;"></iframe> -->
 
   </div>
-  <div class="error-popup-container"></div>
+  <div class="popup-container"></div>
 </body>
 
 </html>

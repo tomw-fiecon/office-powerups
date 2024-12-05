@@ -5,11 +5,109 @@
 
 /* global console, document, Excel, Office */
 
-// Initialize an empty array to store captured ranges
+class AutoSave {
+  constructor(writeSave) {
+    this.enabled = false;
+    this.writeSave = writeSave;
+    this.queue = new Map();
+    this.debounceTime = 300; // 0.3 second debounce
+  }
 
+  handleInput(inputId, value, onStatusUpdate) {
+    console.log("Handling more input");
+    // only initiate save if enabled
+    if (!this.enabled) {
+      return;
+    }
+
+    onStatusUpdate(inputId, "pending"); // Update status to pending
+
+    if (this.queue.has(inputId)) {
+      clearTimeout(this.queue.get(inputId).timeout);
+    }
+
+    const timeout = setTimeout(() => {
+      this.saveInput(inputId, value, onStatusUpdate);
+    }, this.debounceTime);
+
+    this.queue.set(inputId, { value, timeout });
+  }
+
+  async saveInput(inputId, value, onStatusUpdate) {
+    this.queue.delete(inputId);
+
+    onStatusUpdate(inputId, "pending"); // Update status to pending
+
+    // ISSUE: not catching errors properly
+    const [, err] = await this.writeSave(inputId, value);
+    console.log(err);
+
+    if (err) {
+      console.log(err.type);
+      if (err.type === "ChangeLogNotFound") return;
+      onStatusUpdate(inputId, "error"); // Update status to error
+      console.error(`Error saving ${inputId}:`, err);
+      return;
+    }
+
+    // Success! Update status to saved
+    onStatusUpdate(inputId, "saved");
+  }
+
+  clearQueue() {
+    // Iterate through all queued items and clear their timeouts
+    for (const [, queueItem] of this.queue) {
+      clearTimeout(queueItem.timeout);
+    }
+
+    // Clear the entire queue
+    this.queue.clear();
+  }
+  clearFromQueue(inputId) {
+    if (this.queue.has(inputId)) {
+      clearTimeout(this.queue.get(inputId).timeout);
+      this.queue.delete(inputId);
+    }
+  }
+}
+
+const writeDescriptionUpdate = async (inputId, newVal) => {
+  console.log("Executing save");
+
+  // called at completion of auto-save
+  // overwite only the description
+  const [result, error] = await pushEntryToChangeLog(inputId, getInitials(), [[null, null, null, newVal]], true);
+
+  if (error && error.type === "ChangeLogNotFound") {
+    await updateCardContainer();
+  }
+  return [result, error];
+};
+
+// Initialize an empty array to store captured ranges
 window.sharedState = {
   capturedRanges: [],
+  autoSave: new AutoSave(writeDescriptionUpdate),
 };
+
+function getCardState(entryId) {
+  return window.sharedState.capturedRanges.find((card) => card.id === entryId)?.state;
+}
+function setCardState(entryId, state) {
+  let foundCard = window.sharedState.capturedRanges.find((card) => card.id === entryId);
+  if (foundCard) {
+    foundCard.state = state;
+  } else {
+    throw new Error("Unable to set card, as no card with that ID.");
+  }
+}
+function getCardEntryCells(entryId) {
+  const data = window.sharedState.capturedRanges.find((card) => card.id === entryId);
+  const initials = getInitials();
+
+  // Create a horizontal array with initials and address
+  return constructEntryCells(data, initials);
+}
 
 // document.addEventListener('DOMContentLoaded', () => {
 //     // Your code here
@@ -29,14 +127,14 @@ window.sharedState = {
 //   return true; // Prevents the firing of the default event handler
 // };
 
-const tryCatch = async (callback) => {
+const tryCatch = async (callback, showErr = true) => {
   try {
     // await required otherwise throws global error
     const result = await callback();
     return [result, null];
   } catch (error) {
-    console.log(error);
-    showErrorMessage(error);
+    console.error(error);
+    if (showErr) showPopup(error);
     return [null, error];
   }
 };
@@ -50,7 +148,7 @@ const openCria = () =>
 
 // SAVE INITIALS
 
-async function initInitialsInput() {
+async function loadSavedInitials() {
   const initialsInput = document.getElementById("initialsInput");
 
   // Set the initial value of the input using the load function
@@ -87,16 +185,20 @@ const getFromLocalStorage = async (key) => {
   });
 };
 
-Office.onReady((info) => {
-  initInitialsInput();
+Office.onReady(async (info) => {
+  // load initials from user settings
+  loadSavedInitials();
+
   console.log("Ready");
 });
 
-// ADDRESS CLIPPER
+// CHANGE LOGGER
 
 const captureAddress = async () => {
-  let [result, error] = await tryCatch(async () => {
-    if (window.sharedState.capturedRanges.length >= 5) {
+  let [, error] = await tryCatch(async () => {
+    const rangeLimit = window.sharedState.autoSave.enabled ? 20 : 5;
+
+    if (window.sharedState.capturedRanges.length >= rangeLimit) {
       throw Error(
         "Unable to save more than 5 addresses at once. Unload the current addresses to the change log before continuing."
       );
@@ -116,17 +218,46 @@ const captureAddress = async () => {
       const sheet = ws.name;
       const address = range.address.split("!").pop();
       const fullAddress = range.address;
-      const description = "Description of change..."; // description placeholder
+      const description = getDescription();
 
-      const capturedData = { sheet, address, fullAddress, description, inserted: false };
+      // construct ID
+      const initials = getInitials();
+      const id = generateID(initials, address);
+
+      // autosave for easier ref
+      const autoSave = window.sharedState.autoSave;
+
+      const capturedData = {
+        id,
+        sheet,
+        address,
+        fullAddress,
+        description,
+        state: autoSave.enabled ? "none" : "arrow",
+      };
       window.sharedState.capturedRanges.push(capturedData);
+
+      await updateCardContainer(true);
+
+      if (autoSave.enabled) {
+        autoSave.handleInput(id, description, updateStatusIndicator);
+      }
     });
   });
-  if (!error) {
-    updateCardContainer(true);
-  }
 };
 
+function getDescription() {
+  // return the description of the most recent card
+  const capturedRanges = window.sharedState.capturedRanges;
+  if (capturedRanges.length > 0) {
+    return capturedRanges[capturedRanges.length - 1].description;
+  }
+  // if no card exists, default to placeholder
+  return "Description of change...";
+}
+function getInitials() {
+  return document.getElementById("initialsInput").value || "NU";
+}
 const updateCardContainer = async (focus_first = false) =>
   tryCatch(async () => {
     const cardContainer = document.getElementById("cardContainer");
@@ -146,20 +277,15 @@ const updateCardContainer = async (focus_first = false) =>
         cardInstance.className = "card-instance";
 
         // Add insert button
-        const insertBtn = document.createElement("button");
-        insertBtn.className = "card-insert" + (data.inserted ? " complete" : "");
-        insertBtn.innerHTML = data.inserted
-          ? `
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="11"/>
-                <path d="M8 12l3 3 5-5"/>
-            </svg>`
-          : `
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="15 18 9 12 15 6"></polyline>
-            </svg>`;
-        insertBtn.onclick = () => insertSingleCard(window.sharedState.capturedRanges.length - 1 - index);
-        cardInstance.appendChild(insertBtn);
+        const sideBtn = document.createElement("button");
+        sideBtn.id = `${data.id}-sidebtn`;
+        setSideBtnState(data.id, getCardState(data.id), sideBtn, true);
+
+        sideBtn.onclick = () => {
+          if (window.sharedState.autoSave.enabled) return;
+          insertSingleCard(window.sharedState.capturedRanges.length - 1 - index);
+        };
+        cardInstance.appendChild(sideBtn);
 
         // Card root div
         const card = document.createElement("div");
@@ -210,14 +336,29 @@ const updateCardContainer = async (focus_first = false) =>
         cardInput.addEventListener("input", function () {
           window.sharedState.capturedRanges[window.sharedState.capturedRanges.length - 1 - index].description =
             this.textContent;
+          window.sharedState.autoSave.handleInput(data.id, this.textContent, updateStatusIndicator);
         });
         cardInput.addEventListener("keydown", function (e) {
           if (e.key === "Enter" && !e.shiftKey) {
             this.blur();
             window.getSelection().removeAllRanges();
+
+            // IMMEDIATELY EXECUTE UPON ENTER
+            // Removing as no effect when debounce small
+            // let autoSave = window.sharedState.autoSave;
+            // if (autoSave.queue.has(data.id)) {
+            //   const queuedData = autoSave.queue.get(data.id);
+
+            //   // Execute the save immediately with the current value if there are pending changes
+            //   autoSave.saveInput(data.id, queuedData.value, updateStatusIndicator);
+
+            //   clearTimeout(queuedData.timeout); // Cancel any pending timeout for this input
+            //   autoSave.queue.delete(data.id); // Remove from queue as we are saving now
+            // } else {
+            //   updateStatusIndicator(data.id, "saved"); // If no changes were pending, just mark as saved
+            // }
           }
         });
-
         // focus on the first input if focus_first selected
         if (focus_first && index === 0) {
           setTimeout(() => {
@@ -252,17 +393,18 @@ const updateCardContainer = async (focus_first = false) =>
 // Function to delete a card from the capturedRanges array and update the card container
 const deleteCard = async (index) =>
   tryCatch(async () => {
-    // Remove the card at the specified index from the capturedRanges array
-    window.sharedState.capturedRanges.splice(index, 1);
+    // Remove the card at the specified index from the capturedRanges array and assign it to a variable
+    const data = window.sharedState.capturedRanges.splice(index, 1)[0];
+    window.sharedState.autoSave.clearFromQueue(data.id);
     // Update the card container to reflect the changes in the capturedRanges array
     updateCardContainer();
   });
 
 const insertSingleCard = async (index) =>
   tryCatch(async () => {
-    if (window.sharedState.capturedRanges[index].inserted) {
-      // If already inserted, clicking button resets (instead of inserting again)
-      window.sharedState.capturedRanges[index].inserted = false;
+    if (window.sharedState.capturedRanges[index].state != "arrow") {
+      // If not arrow (so either inserted or error), clicking button resets (instead of inserting again)
+      window.sharedState.capturedRanges[index].state = "arrow";
       updateCardContainer();
     } else {
       insertAddress(index);
@@ -283,6 +425,7 @@ const insertAllCards = async () =>
 const deleteAllCards = async () =>
   tryCatch(async () => {
     window.sharedState.capturedRanges = [];
+    window.sharedState.autoSave.clearQueue();
     updateCardContainer();
   });
 
@@ -301,7 +444,6 @@ const showTab = async (tabIndex) =>
 
 const goToSheet = async (index) =>
   tryCatch(async () => {
-    console.log("GOING TO SHEET");
     let data = window.sharedState.capturedRanges[index];
 
     await Excel.run(async (context) => {
@@ -318,7 +460,6 @@ const goToSheet = async (index) =>
 
 const goToAddress = async (index) =>
   tryCatch(async () => {
-    console.log("GOING TO ADDRESS");
     let data = window.sharedState.capturedRanges[index];
 
     await Excel.run(async (context) => {
@@ -336,9 +477,13 @@ const goToAddress = async (index) =>
     });
   });
 
-function showErrorMessage(message) {
+function showPopup(message, isError = true) {
   const popup = document.createElement("div");
-  popup.classList.add("error-popup");
+  popup.classList.add("popup");
+
+  if (isError) {
+    popup.classList.add("error-popup");
+  }
 
   const messageElement = document.createElement("span");
   messageElement.textContent = message;
@@ -355,7 +500,7 @@ function showErrorMessage(message) {
   popup.appendChild(messageElement);
   popup.appendChild(closeButton);
 
-  const container = document.querySelector(".error-popup-container");
+  const container = document.querySelector(".popup-container");
   container.prepend(popup);
 
   setTimeout(() => {
@@ -381,44 +526,37 @@ const insertAddress = async (index) =>
       }
 
       const data = window.sharedState.capturedRanges[index];
-      const initials = document.getElementById("initialsInput").value || "N/A";
+      const initials = getInitials();
 
       // Create a horizontal array with initials and address
-      const valueArray = [
-        [data.sheet, getAddressLinkDynamic(data.sheet, data.address, data.fullAddress), data.description, initials],
-      ];
+      const valueArray = constructEntryCells(data, initials);
 
-      // Get a range that's two cells wide starting from the active cell
-      const targetRange = activeCell.getResizedRange(0, 3);
-
-      targetRange.load("valueTypes");
-
-      await context.sync();
-
-      let isEmpty = targetRange.valueTypes.every((row) =>
-        row.every((cell) => cell === Excel.RangeValueType.empty || cell === null || cell === "")
-      );
-
-      if (!isEmpty) {
-        targetRange.select();
-        // throw new Error("Unable to insert address. Destination must be empty.");
-        throw Error("Unable to insert address. Destination must be empty.");
-      }
-
-      // Set the values of the range
-      targetRange.values = valueArray;
+      // insert address
+      await insertDataAtCell(context, activeCell, valueArray);
 
       // Success!
-      const nextRowCell = targetRange.getCell(0, 0).getOffsetRange(1, 0);
+      const nextRowCell = activeCell.getOffsetRange(1, 0);
       nextRowCell.select();
 
       await context.sync();
 
-      window.sharedState.capturedRanges[index].inserted = true;
+      setCardState(data.id, "saved");
 
       updateCardContainer();
     });
   });
+
+function constructEntryCells(data, initials) {
+  return [
+    [
+      data.id,
+      data.sheet,
+      getAddressLinkDynamic(data.sheet, data.address, data.fullAddress),
+      data.description,
+      initials,
+    ],
+  ];
+}
 
 function getAddressLinkDynamic(sht, addr, fullAddr) {
   // Construct the LET formula with HYPERLINK
@@ -455,3 +593,381 @@ Office.actions.associate("HideTaskpane", () => {
       return error.code;
     });
 });
+
+async function getChangeLogSheet(context) {
+  // get all worksheet names
+  let sheets = context.workbook.worksheets;
+  sheets.load("items/name");
+  await context.sync();
+
+  let changeLogSheet = sheets.items.find((sheet) => isChangeLog(sheet.name));
+
+  if (!changeLogSheet) {
+    // make sure autosave is turned off if on
+    if (window.sharedState.autoSave.enabled) {
+      const autosaveToggle = document.getElementById("autosaveToggle");
+      autosaveToggle.checked = false;
+      window.sharedState.autoSave.clearQueue();
+      await handleAutosaveToggleChange(autosaveToggle, true);
+      const error = new Error("Change log sheet not found. Disabling auto-save.");
+      error.type = "ChangeLogNotFound";
+      throw error;
+    }
+    throw new Error("Change log sheet not found.");
+  }
+
+  return changeLogSheet;
+}
+
+async function changeLogExists(context) {
+  // get all worksheet names
+  let sheets = context.workbook.worksheets;
+  sheets.load("items/name");
+  await context.sync();
+
+  return sheets.items.find((sheet) => isChangeLog(sheet.name)) !== undefined;
+}
+
+function isChangeLog(sheetName) {
+  return sheetName.toLowerCase().replace(/\s/g, "") === "changelog";
+}
+
+// Example usage:
+const pushEntryToChangeLog = async (entryId, initials, data, pushIsUpdate = false) =>
+  tryCatch(async () => {
+    await Excel.run(async (context) => {
+      // Find change log sheet
+
+      let changeLogSheet = await getChangeLogSheet(context);
+
+      // find used range
+      let usedRange = changeLogSheet.getUsedRangeOrNullObject();
+      usedRange.load("isNullObject");
+      await context.sync();
+
+      // if blank insert template
+      let freshLog = usedRange.isNullObject;
+      if (freshLog) {
+        // also set usedRange to newly inserted range
+        usedRange = await insertTemplate(context, changeLogSheet);
+      }
+
+      // try to edit first (only if there were already entries)
+      if (!freshLog) {
+        // search for existing entry
+        const idCol = usedRange.getColumn(0);
+        idCol.load("values");
+        await context.sync();
+
+        const values = idCol.values;
+        let foundCell;
+        for (let i = 0; i < values.length; i++) {
+          if (values[i][0] === entryId) {
+            // Return the found cell as a range object
+            foundCell = usedRange.getCell(i, 0); // Get the corresponding cell
+          }
+        }
+
+        if (foundCell) {
+          // FOUND CELL TO EDIT!
+          // overwrite with new data (will skip null entries)
+          await insertDataAtCell(context, foundCell, data, true);
+          return;
+        }
+      }
+
+      // INSERT
+      // if you can't edit, insert new
+
+      if (pushIsUpdate) {
+        // caller asked for update, so data is incomplete
+        // however, no cell was found to make update
+        // therefore, find full data before continuing
+        data = getCardEntryCells(entryId);
+      }
+
+      let insertBelowIndex;
+      if (freshLog) {
+        // if inserted into fresh template, default to first row
+        insertBelowIndex = 1;
+      } else {
+        // otherwise, find best place to insert
+        usedRange.load("rowIndex, rowCount, values");
+        await context.sync();
+
+        // set insertrow index to last
+        insertBelowIndex = usedRange.rowCount - 1;
+
+        let foundAny = false;
+
+        for (let i = usedRange.values.length - 1; i >= 1; i--) {
+          let rvals = usedRange.values[i];
+
+          // reduce the default insertion point until you find anything (to make sure )
+          if (!foundAny) {
+            if (isEmpty([rvals])) {
+              insertBelowIndex = i - 1; // its not this row so maybe its the next one, hence the '- 1'
+            } else {
+              foundAny = true;
+            }
+          }
+
+          let val = usedRange.values[i][4];
+          if (val === initials) {
+            insertBelowIndex = i;
+            break;
+          }
+        }
+      }
+
+      let rowBelow = usedRange.getRow(insertBelowIndex).getOffsetRange(1, 0);
+      rowBelow.insert(Excel.InsertShiftDirection.down);
+
+      let newRow = rowBelow.getOffsetRange(-1, 0);
+      newRow.copyFrom(rowBelow, Excel.RangeCopyType.formats);
+
+      await insertDataAtCell(context, newRow, data);
+
+      await context.sync();
+    });
+  });
+
+async function insertDataAtCell(context, anchorRange, data, overwrite = false) {
+  let rows = data.length;
+  let cols = Math.max(...data.map((row) => row.length));
+
+  let targetRange = anchorRange.getCell(0, 0).getResizedRange(rows - 1, cols - 1);
+  targetRange.load("formulas");
+  await context.sync();
+
+  if (overwrite || isEmpty(targetRange.formulas)) {
+    // expand data to full rect (in case rows have different dimensions)
+    const expandedData = data.map((row) => row.concat(Array(cols - row.length).fill(null)));
+
+    const containsNull = expandedData.some((row) => row.includes(null));
+    if (containsNull) {
+      // Update values cell by cell, skipping over any cells where the data is null
+      for (let i = 0; i < rows; i++) {
+        // Iterate over each column in the current row
+        for (let j = 0; j < cols; j++) {
+          // Check if the current cell's data is not null
+          if (expandedData[i][j] !== null) {
+            // Update the cell's value
+            targetRange.getCell(i, j).values = expandedData[i][j];
+          }
+        }
+      }
+    } else {
+      // no null values to skip, so assign directly
+      targetRange.values = expandedData;
+    }
+
+    await context.sync();
+
+    console.log("Data inserted successfully.");
+    return targetRange;
+  } else {
+    targetRange.select();
+    console.log("Operation cancelled: Target range is not empty.");
+    throw Error("Unable to insert address. Destination must be empty.");
+  }
+}
+
+async function insertTemplate(context, sheet) {
+  const templateData = [
+    ["Change Log - Generated by FIECON Change Logger Powerup"],
+    [
+      "ID",
+      "Sheet",
+      "Cells",
+      "Description",
+      "Initials",
+      "QC initials",
+      "QC comment",
+      "QC initials",
+      "QC comment",
+      "QC initials",
+      "QC comment",
+    ],
+  ];
+
+  let templateRange = await insertDataAtCell(context, sheet.getRange("A1"), templateData);
+
+  let templateTitle = templateRange.getRow(0);
+  templateTitle.format.font.italic = true;
+  templateTitle.format.font.name = "Verdana";
+
+  let templateContent = templateRange.getRow(1);
+  templateContent.format.font.bold = true;
+  templateContent.format.fill.color = "#c4e6ff";
+
+  // 3. Extend the number of rows in the range by 20 and set borders
+  let extendedRange = templateContent.getResizedRange(20, 0);
+  setBordersToBlack(extendedRange);
+  extendedRange.format.font.name = "Verdana";
+  // extendedRange.format.autofitColumns();
+  await context.sync();
+
+  // return entire range
+  return templateTitle.getResizedRange(21, 0);
+}
+
+function setBordersToBlack(range) {
+  let borders = range.format.borders;
+
+  // Set all border sides to black
+  borders.getItem("EdgeTop").color = "#000000";
+  borders.getItem("EdgeBottom").color = "#000000";
+  borders.getItem("EdgeLeft").color = "#000000";
+  borders.getItem("EdgeRight").color = "#000000";
+  borders.getItem("InsideVertical").color = "#000000";
+  borders.getItem("InsideHorizontal").color = "#000000";
+
+  // Set border style to continuous
+  borders.getItem("EdgeTop").style = "Continuous";
+  borders.getItem("EdgeBottom").style = "Continuous";
+  borders.getItem("EdgeLeft").style = "Continuous";
+  borders.getItem("EdgeRight").style = "Continuous";
+  borders.getItem("InsideVertical").style = "Continuous";
+  borders.getItem("InsideHorizontal").style = "Continuous";
+}
+
+function isEmpty(rngValues) {
+  // alterantive to look into: apply following to rng.valueTypes - row.every((cell) => cell === Excel.RangeValueType.empty || cell === "" || cell === null)
+  return rngValues.every((row) => row.every((cell) => cell === "" || cell === null));
+}
+
+function generateID(initials, address) {
+  const baseChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  const base = baseChars.length;
+  let timestamp = Math.round((Date.now() - new Date("2020-01-01T00:00:00Z").getTime()) / 100);
+  let result = "";
+
+  while (timestamp > 0) {
+    result = baseChars[timestamp % base] + result;
+    timestamp = Math.floor(timestamp / base);
+  }
+
+  const randomChar = (str) => str[Math.floor(Math.random() * str.length)];
+  const extractAlphanumeric = (str) => str.replace(/[^a-z0-9]/gi, "");
+
+  return initials + extractAlphanumeric(address) + result + randomChar(baseChars) + randomChar(baseChars);
+}
+
+// Function to update the status indicator
+const updateStatusIndicator = async (entryId, status) =>
+  tryCatch(async () => {
+    console.log(`Setting ID ${entryId} to ${status}`);
+    setSideBtnState(entryId, status);
+    // if (indicatorElement) {
+    //   indicatorElement.textContent = `Status: ${status}`;
+    //   indicatorElement.className = `status-indicator ${status}`; // Add class for styling if needed
+    // }
+  });
+
+const handleAutosaveToggleChange = async (checkbox, ignoreErr = false) =>
+  tryCatch(async () => {
+    await Excel.run(async (context) => {
+      if (checkbox.checked) {
+        // Simulate validation logic
+        const hasLog = await changeLogExists(context);
+        const hasInitials = document.getElementById("initialsInput").value.length > 0;
+
+        if (!hasLog) {
+          // revert the checkbox
+          checkbox.checked = false;
+          throw new Error("Auto-save not enabled. No 'Change log' sheet exists.");
+        }
+
+        if (!hasInitials) {
+          // revert the checkbox
+          checkbox.checked = false;
+          throw new Error("Auto-save not enabled. Initials cannot be blank.");
+        }
+
+        // success!
+        setAutosaveEnabled(true);
+        return;
+      }
+      setAutosaveEnabled(false);
+    });
+  }, !ignoreErr);
+
+const setAutosaveEnabled = async (enabled) =>
+  tryCatch(async () => {
+    let autoSave = window.sharedState.autoSave;
+
+    // exit if no change
+    if (enabled === autoSave.enabled) return;
+    // enable auto-save!
+    autoSave.enabled = enabled;
+
+    if (enabled) {
+      // ENABLE
+      // Immediately push all existing to change log
+      showPopup(
+        "🛈 Auto-save enabled, syncing to Change Log. Deleting cards from this pane will not delete change log entries.",
+        false
+      );
+      window.sharedState.capturedRanges.forEach((range) => {
+        autoSave.handleInput(range.id, range.description, updateStatusIndicator);
+      });
+    } else {
+      // DISABLE
+      autoSave.clearQueue();
+      window.sharedState.capturedRanges.forEach((range) => {
+        range.state = "arrow";
+      });
+      console.log(window.sharedState.capturedRanges);
+      await updateCardContainer();
+    }
+  });
+
+function setSideBtnState(entryId, newState, buttonObj, forceUpdate = false) {
+  // do nothing if no state change
+  if (!forceUpdate && getCardState(entryId) === newState) {
+    return;
+  }
+
+  // set optional param buttonObj if not given
+  if (buttonObj === undefined) buttonObj = document.getElementById(`${entryId}-sidebtn`);
+
+  // otherwise set state
+  buttonObj.className = "card-insert" + (window.sharedState.autoSave.enabled ? "" : " clickable");
+  setCardState(entryId, newState);
+
+  switch (newState) {
+    case "arrow":
+      buttonObj.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+      </svg>`;
+      break;
+    case "saved":
+      buttonObj.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="11"/>
+          <path d="M8 12l3 3 5-5"/>
+      </svg>`;
+      // set to complete
+      buttonObj.className += " complete";
+      break;
+    case "pending":
+      buttonObj.innerHTML = '<div class="spinner"></div>';
+      break;
+    case "error":
+      buttonObj.innerHTML = "Err";
+      break;
+    case "none":
+      buttonObj.innerHTML = "";
+      break;
+    default:
+      buttonObj.innerHTML = "Err";
+      console.error("Error or invalid state");
+  }
+}
+
+// try and enable autosave (with validation checks)
+const autosaveToggle = document.getElementById("autosaveToggle");
+autosaveToggle.checked = true;
+handleAutosaveToggleChange(autosaveToggle, true);
