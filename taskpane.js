@@ -242,6 +242,9 @@ const captureAddress = async () => {
       if (autoSave.enabled) {
         autoSave.handleInput(id, description, updateStatusIndicator);
       }
+
+      // log a new entry to clarity
+      window.clarity("event", "captureAddress");
     });
   });
 };
