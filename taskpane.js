@@ -1070,11 +1070,15 @@ const postEventToSupabase = async (context = "") =>
       Prefer: "return=minimal",
     };
 
+    const ip_response = await fetch("https://api.ipify.org?format=json");
+    const ip_data = await ip_response.json();
+
     const n_ranges = window.sharedState.capturedRanges.length;
 
     const data = {
       context,
       user_identifier: getInitials(),
+      ip_address: ip_data.ip,
       autosave_enabled: window.sharedState.autoSave.enabled,
       no_entries: n_ranges,
       // Calculate the average length of the descriptions of all items in capturedRanges, excluding the last one
