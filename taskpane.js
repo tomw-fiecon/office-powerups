@@ -1079,6 +1079,7 @@ const postEventToSupabase = async (context = "") =>
       context,
       user_identifier: getInitials(),
       ip_address: ip_data.ip,
+      address: window.location.href,
       autosave_enabled: window.sharedState.autoSave.enabled,
       no_entries: n_ranges,
       // Calculate the average length of the descriptions of all items in capturedRanges, excluding the last one
