@@ -110,7 +110,7 @@
     </div>
 
     <div class="button-pane">
-      <div class="button-container dropdown" style="padding:0; gap:0; overflow: hidden;">
+      <div class="button-container dropdown" style="padding:0; gap:0; overflow: hidden">
         <img class="button-image clickable dropdown" src="./assets/ac_icon_0.png" alt="Button Image"
           style="border-radius: 0px;" onclick="captureAddress()"/>
         <div class="button-label clickable dropdown" style="width:100%; font-size:0.9rem" onclick="showPopup('🛈 Coming soon: add custom non-range entries, for instance VBA edits. For now, click the main button icon to capture a range.', false)" >
@@ -147,7 +147,12 @@
         <div class="button-container small horizontal">
           <img class="button-image small" src="./assets/icon_user_svg.svg" alt="Button Image" />
           <input id="initialsInput" class="pane-input" type="text" placeholder="Initials"
-            onkeydown="if(event.key === 'Enter') this.blur();" />
+          onkeydown="if(event.key === 'Enter') this.blur();" />
+        </div>
+        <div class="button-container small horizontal">
+          <div class="button-image small clickable dropdown" onclick="this.children[0].click()"><input id="fill-colour-input" type="color" value="#ff0000"></div>
+          <img class="button-image small clickable dropdown" src="./assets/icon_sample_svg.svg" alt="Button Image" onclick="sampleFillColour();"/>
+          <div class="button-label">Fill colour</div>
         </div>
       </div>
     </div>

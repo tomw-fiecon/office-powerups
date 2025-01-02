@@ -50,7 +50,7 @@ p {
 }
 .button-container.horizontal {
     flex-direction: row;
-    width:120px;
+    /* width:120px; */
 }
 
 .vertical-button-group {
@@ -68,15 +68,7 @@ p {
 }
 
 
-.button-container.dropdown:hover {
-    outline: solid lightgray 1px;
-}
-.button-image.dropdown:hover {
-    outline: solid lightgray 1px;
-}
-.button-label.dropdown:hover {
-    outline: solid lightgray 1px;
-}
+
 
 .button-image {
     max-width: 65px;
@@ -94,10 +86,32 @@ p {
     border-radius:6px;
 }
 
+.button-image.clickable:hover {
+    background-color: #eeeeee;
+}
+
+.button-image.clickable:active {
+    background-color: #d0d0d0;
+}
+
+
 .button-container.small .button-image {
     max-width: 20px;
     max-height: 20px;
 }
+
+
+.button-container.dropdown:hover {
+    outline: solid lightgray 1px;
+}
+.button-image.dropdown:hover {
+    outline: solid lightgray 1px;
+}
+.button-label.dropdown:hover {
+    outline: solid lightgray 1px;
+}
+
+
 
 .button-label {
     color: #555;
@@ -155,7 +169,7 @@ p {
     background-color: #ffffff;
     border-bottom: 1px solid #dee2e6;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     padding-left:20px;
     gap: 0.6rem;
     /* box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); */
@@ -164,7 +178,8 @@ p {
 }
 
 .divider {
-    height:80px;
+    /* height:80px; */
+    height:100%;
     width: 0.5px;
     background-color: #dee2e6;
 }
@@ -600,7 +615,9 @@ flex-direction: column;
     transform: translateX(15px);
 }
 
-
+#initialsInput {
+    max-width: 50px;
+}
 
 .spinner {
     width: 100%;
@@ -616,4 +633,24 @@ flex-direction: column;
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+input[type="color"] {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: none;
+    border-radius: 50%; /* Makes the input circular */
+    background: none;
+    /* cursor: pointer; */
+    -webkit-appearance: none;
+    overflow: hidden;
+}
+input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+    border-radius: 50%;
+}
+input[type="color"]::-webkit-color-swatch {
+    border: none;
+    border-radius: 50%;
 }
