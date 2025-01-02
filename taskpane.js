@@ -216,7 +216,8 @@ Office.onReady(async (info) => {
 
 // CHANGE LOGGER
 
-const captureAddress = async () => {
+const captureAddress = async (context = undefined) => {
+  // note can probably remove assignment on line below
   let [, error] = await tryCatch(async () => {
     const rangeLimit = window.sharedState.autoSave.enabled ? 20 : 5;
 
@@ -267,6 +268,7 @@ const captureAddress = async () => {
 
       // log a new entry to clarity
       window.clarity("event", "captureAddress");
+      postEventToSupabase(context === "fromShortcut" ? context : "");
     });
   });
 };
@@ -599,7 +601,7 @@ Office.actions.associate("ShowTaskpane", () => {
     .showAsTaskpane()
     .then(async () => {
       showTab(2);
-      captureAddress();
+      captureAddress("fromShortcut");
       return;
     })
     .catch((error) => {
@@ -1054,3 +1056,39 @@ function hslToHex(h, s, l) {
   };
   return `#${f(0)}${f(8)}${f(4)}`;
 }
+
+const postEventToSupabase = async (context = "") =>
+  tryCatch(async () => {
+    const apikey =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ0d3ptc2tldmp0bWxicnZrZnl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM1ODA3NTAsImV4cCI6MjA0OTE1Njc1MH0.cOYXBDIaN1Sr3ldSoRq7zLbbABvQWJlcLR8MZOsLOS8";
+    const url = "https://rtwzmskevjtmlbrvkfyz.supabase.co/rest/v1/powerup_actions";
+
+    const headers = {
+      apikey,
+      Authorization: "Bearer " + apikey,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+    };
+
+    const n_ranges = window.sharedState.capturedRanges.length;
+
+    const data = {
+      context,
+      user_identifier: getInitials(),
+      autosave_enabled: window.sharedState.autoSave.enabled,
+      no_entries: n_ranges,
+      // Calculate the average length of the descriptions of all items in capturedRanges, excluding the last one
+      // divide by the number of elements (excluding the last one)
+      avg_desc_len:
+        window.sharedState.capturedRanges.slice(0, -1).reduce((acc, curr) => acc + curr.description.length, 0) / // sum up the lengths of all descriptions
+        (n_ranges - 1),
+    };
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: headers,
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) throw new Error("Failed to log action");
+  });
